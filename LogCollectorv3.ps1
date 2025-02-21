@@ -1,4 +1,7 @@
-# Setup Log Directory and Path
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+
+# Setup Default Log Directory
 $logDirectory = "C:\Logs"
 $logFilePath = "$logDirectory\eventlog.txt"
 $excelFilePath = "$logDirectory\eventlog.xlsx"
@@ -7,66 +10,117 @@ if (-not (Test-Path $logDirectory)) {
     New-Item -Path $logDirectory -ItemType Directory
 }
 
-# Create a function to write the logs
-function Write-Log {
-    param (
-        [string]$message,
-        [ValidateSet("INFO", "WARNING", "ERROR", "EVENT")]
-        [string]$type = "INFO"
-    )
-
-    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    $logEntry = "$timestamp [$type] $message"
-    try {
-        Add-Content -Path $logFilePath -Value $logEntry
-    } catch {
-        Write-Error "Failed to write log: $_"
+# Function to Select Folder
+function Select-Folder {
+    $folderBrowser = New-Object System.Windows.Forms.FolderBrowserDialog
+    $folderBrowser.SelectedPath = "C:\Logs"  # Set default folder to C:\Logs
+    if ($folderBrowser.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+        return $folderBrowser.SelectedPath
     }
+    return $null
 }
 
-# Create a function to collect written logs in eventviewer
+# Create Function to Collect Logs
 function Collect-EventLogs {
     param (
-        [string]$logName = "Application",
-        [ValidateRange(1, 1000)]
-        [int]$eventCount = 50,
-        [string]$eventType = "Information"
+        [string]$logName,
+        [int]$eventCount,
+        [string]$savePath
     )
-
-    Write-Log -message "Collecting $eventCount $eventType events from $logName log" -type "INFO"
-    try {
-        $events = Get-EventLog -LogName $logName -Newest $eventCount | Where-Object { $_.EntryType -eq $eventType }
-        $logEntries = @()
-        foreach ($event in $events) {
-            $logMessage = "EventID: $($event.EventID), Source: $($event.Source), Message: $($event.Message)"
-            Write-Log -message $logMessage -type "EVENT"
-            $logEntries += [PSCustomObject]@{
-                Timestamp = $event.TimeGenerated
-                EventID   = $event.EventID
-                Source    = $event.Source
-                Message   = $event.Message
-            }
+    
+    $events = Get-EventLog -LogName $logName -Newest $eventCount
+    $logEntries = @()
+    
+    foreach ($event in $events) {
+        $logMessage = "EventID: $($event.EventID), Source: $($event.Source), Message: $($event.Message)"
+        $logEntries += [PSCustomObject]@{
+            Timestamp = $event.TimeGenerated
+            EventID   = $event.EventID
+            Source    = $event.Source
+            Message   = $event.Message
         }
-        # Export to Excel
-        $logEntries | Export-Excel -Path $excelFilePath -WorksheetName "EventLogs" -AutoSize
-    } catch {
-        Write-Log -message "Failed to collect event logs: $_" -type "ERROR"
     }
+    
+    $csvPath = "$savePath\eventlog.csv"
+    $logEntries | Export-Csv -Path $csvPath -NoTypeInformation
+    [System.Windows.Forms.MessageBox]::Show("Logs collected successfully! Saved to: $csvPath", "Success", "OK", "Information")
 }
 
-# Prompt for log name, event count, and event type
-$logName = Read-Host "Enter the log name (e.g., Application, System, Security)"
-$eventCountInput = Read-Host "Enter the number of events to collect"
-[int]$eventCount = $eventCountInput
-$eventType = Read-Host "Enter the event type (e.g., Information, Warning, Error)"
+# Create the Form
+$form = New-Object System.Windows.Forms.Form
+$form.Text = "Event Log Collector"
+$form.Size = New-Object System.Drawing.Size(420, 300)
+$form.StartPosition = "CenterScreen"
 
-# Collect logs based on user input
-Collect-EventLogs -logName $logName -eventCount $eventCount -eventType $eventType
+# Label for Log Type
+$labelLog = New-Object System.Windows.Forms.Label
+$labelLog.Text = "Log Name:"
+$labelLog.Location = New-Object System.Drawing.Point(20, 20)
+$labelLog.Size = New-Object System.Drawing.Size(70, 20)
+$form.Controls.Add($labelLog)
 
-# Inform the user where to find the logs
-Write-Host "Logs have been collected and saved to:"
-Write-Host "Text log file: $logFilePath"
-Write-Host "Excel log file: $excelFilePath"
+# Dropdown for Log Type
+$comboBoxLog = New-Object System.Windows.Forms.ComboBox
+$comboBoxLog.Location = New-Object System.Drawing.Point(100, 18)
+$comboBoxLog.Size = New-Object System.Drawing.Size(200, 20)
+$comboBoxLog.Items.AddRange(@("Application", "System", "Security"))
+$form.Controls.Add($comboBoxLog)
 
-# Wait for user input before closing
-Read-Host "Press Enter to exit"
+# Label for Event Count
+$labelCount = New-Object System.Windows.Forms.Label
+$labelCount.Text = "Event Count:"
+$labelCount.Location = New-Object System.Drawing.Point(20, 60)
+$labelCount.Size = New-Object System.Drawing.Size(80, 20)
+$form.Controls.Add($labelCount)
+
+# TextBox for Event Count
+$textBoxCount = New-Object System.Windows.Forms.TextBox
+$textBoxCount.Location = New-Object System.Drawing.Point(100, 58)
+$textBoxCount.Size = New-Object System.Drawing.Size(200, 20)
+$form.Controls.Add($textBoxCount)
+
+# Label for Save Location
+$labelSave = New-Object System.Windows.Forms.Label
+$labelSave.Text = "Save Location:"
+$labelSave.Location = New-Object System.Drawing.Point(20, 100)
+$labelSave.Size = New-Object System.Drawing.Size(80, 20)
+$form.Controls.Add($labelSave)
+
+# TextBox for Save Location
+$textBoxSave = New-Object System.Windows.Forms.TextBox
+$textBoxSave.Location = New-Object System.Drawing.Point(100, 98)
+$textBoxSave.Size = New-Object System.Drawing.Size(220, 20)
+$textBoxSave.ReadOnly = $true
+$textBoxSave.Text = "C:\Logs"  # Set default folder to C:\Logs
+$form.Controls.Add($textBoxSave)
+
+# Button to Select Folder
+$buttonBrowse = New-Object System.Windows.Forms.Button
+$buttonBrowse.Text = "Browse"
+$buttonBrowse.Location = New-Object System.Drawing.Point(330, 95)
+$buttonBrowse.Size = New-Object System.Drawing.Size(60, 23)
+$buttonBrowse.Add_Click({
+    $folder = Select-Folder
+    if ($folder) {
+        $textBoxSave.Text = $folder
+    }
+})
+$form.Controls.Add($buttonBrowse)
+
+# Button to Collect Logs
+$buttonCollect = New-Object System.Windows.Forms.Button
+$buttonCollect.Text = "Collect Logs"
+$buttonCollect.Location = New-Object System.Drawing.Point(100, 140)
+$buttonCollect.Add_Click({
+    $eventCountText = $textBoxCount.Text.Trim()
+    $savePath = $textBoxSave.Text.Trim()
+    if ($comboBoxLog.SelectedItem -and $eventCountText -match "^\d+$" -and $savePath) {
+        Collect-EventLogs -logName $comboBoxLog.SelectedItem -eventCount ([int]$eventCountText) -savePath $savePath
+    } else {
+        [System.Windows.Forms.MessageBox]::Show("Please select a log type, enter a valid event count, and choose a save location.", "Error", "OK", "Error")
+    }
+})
+$form.Controls.Add($buttonCollect)
+
+# Show Form
+$null = $form.ShowDialog()
