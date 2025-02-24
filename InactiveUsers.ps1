@@ -22,7 +22,7 @@ try{
 
     # Export to CSV
     $inactiveUsers | Export-Csv -Path "C:\Reports\InactiveUsers.csv" -NoTypeInformation
-    Write-Host "Inactive users have been exported to C:\Reports\InactiveUsers.csv"
+    Write-Host "`e[1;32mInactive users have been exported to C:\Reports\InactiveUsers.csv`e[0m"
 } catch {
     Write-Host "An error Occured: $_"
 }

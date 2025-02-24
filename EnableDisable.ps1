@@ -14,10 +14,10 @@ $username = Read-Host "Enter the username (SamAccountName)"
 # Perform the action based on input
 if ($action -eq "enable") {
     Enable-ADAccount -Identity $username
-    Write-Host "User account '$username' has been enabled."
+    Write-Host "User account '`e[1;32m$username`e[0m' has been enabled."
 } elseif ($action -eq "disable") {
     Disable-ADAccount -Identity $username
-    Write-Host "User account '$username' has been disabled."
+    Write-Host "User account '`e[1;32m$username`e[0m' has been disabled."
 } else {
     Write-Host "Invalid action. Please enter 'enable' or 'disable'."
 }
