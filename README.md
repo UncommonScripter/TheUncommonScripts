@@ -14,3 +14,11 @@ This script is a log collection at it's most basic form for the linux environmen
 LogCollector.ps1
 
 This script is similar to the Linux Log Collector but this is more refined and for use in the Windows environment.
+
+EnableDisable.ps1
+
+This script prompts you whether you want to disable or enable an AD account.
+
+InactiveUsers.ps1
+
+This script exports a list of AD accounts that haven't been active for 90 days.
